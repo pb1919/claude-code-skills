@@ -54,14 +54,15 @@ def get_version(repo_dir: Path) -> str:
 
 
 def get_uncommitted_changes(repo_dir: Path) -> list[str]:
-    """Return list of modified/untracked file lines from git status."""
+    """Return tracked files with uncommitted changes (excludes untracked files)."""
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         capture_output=True,
         text=True,
         cwd=repo_dir,
     )
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    # '??' prefix = untracked; skip those since git archive never includes them
+    return [line for line in result.stdout.splitlines() if line.strip() and not line.startswith("??")]
 
 
 def ls_files(repo_dir: Path, path: str = "") -> list[str]:
