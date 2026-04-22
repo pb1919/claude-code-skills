@@ -2,21 +2,23 @@
 #
 # Usage:
 #   .\install.ps1                           # Global install (symlinks to $HOME\.claude\)  — needs admin OR Developer Mode
-#   .\install.ps1 -Project                  # Per-project install (copies to .\.claude\)   — no admin needed
+#   .\install.ps1 -Project                  # Per-project install (copies to .\.claude\, gitignored by default)
 #   .\install.ps1 -Project C:\path\to\repo  # Per-project install into a specific dir
+#   .\install.ps1 -Project -NoGitignore     # Per-project install WITHOUT gitignoring (commit & share with team)
 #   .\install.ps1 -Project -Symlink         # Per-project install using symlinks (solo dev; not for git-sharing)
-#   .\install.ps1 -Project -Gitignore       # Per-project install + add .claude\skills|commands to .gitignore
 #
-# Global install is the usual choice. Per-project is for people who want
-# different skill versions in different projects (e.g., working across multiple
-# organisations) or who can't get global install working on Windows without admin.
+# Per-project install copies files into the project's `.claude\` folder and
+# automatically adds `.claude\skills\` and `.claude\commands\` to `.gitignore`
+# so they don't end up in the project's git history. Pass -NoGitignore to
+# keep them out of .gitignore (e.g., to commit them and share with a team).
 
 [CmdletBinding()]
 param(
     [switch]$Project,
     [switch]$Global,
     [switch]$Symlink,
-    [switch]$Gitignore,
+    [switch]$Gitignore,       # Back-compat alias — was required, now the default
+    [switch]$NoGitignore,
     [Parameter(Position = 0)][string]$TargetDir
 )
 
@@ -146,9 +148,12 @@ Write-Host "   - $installedCommands command(s) installed to $COMMANDS_DIR"
 Write-Host ""
 
 if ($mode -eq "project") {
-    if ($Gitignore) {
+    # Gitignore is on by default; -NoGitignore opts out
+    $addGitignore = -not $NoGitignore
+
+    if ($addGitignore) {
         $gitignorePath = Join-Path $TargetDir ".gitignore"
-        $marker = "# Claude Code skills and commands (local-only install)"
+        $marker = "# Claude Code skills and commands (installed locally)"
         $existing = if (Test-Path $gitignorePath) { Get-Content $gitignorePath -Raw } else { "" }
         if ($existing -and $existing.Contains($marker)) {
             Write-Host "[i] .gitignore already has entries for .claude\skills and .claude\commands"
@@ -162,12 +167,13 @@ if ($mode -eq "project") {
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "  - Skills and commands are available inside: $TargetDir"
-    if ($Gitignore) {
-        Write-Host "  - Skills and commands are gitignored — every dev runs this install themselves"
+    if ($addGitignore) {
+        Write-Host "  - .claude\skills\ and .claude\commands\ are gitignored — not committed to this repo"
+        Write-Host "  - Teammates will need to run this install themselves"
+        Write-Host "  - To share with the team via git instead: re-run with -NoGitignore and commit the folders"
     } else {
-        Write-Host "  - Decide whether to commit or ignore the installed files:"
-        Write-Host "      * Share with teammates:  git add .claude\skills .claude\commands && git commit"
-        Write-Host "      * Keep local-only:       re-run with -Gitignore, or add .claude\skills\ and .claude\commands\ to .gitignore"
+        Write-Host "  - .claude\skills\ and .claude\commands\ are NOT gitignored — commit them to share with teammates:"
+        Write-Host "      git add .claude\skills .claude\commands; git commit -m `"chore: add Claude Code skills and commands`""
     }
     Write-Host "  - For agile-board: python $REPO_DIR\skills\agile-board\scripts\setup.py"
     if (-not $useSymlink) {

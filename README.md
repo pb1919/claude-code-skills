@@ -85,24 +85,20 @@ You can also pass the project path explicitly instead of `cd`-ing:
 .\install.ps1 -Project C:\path\to\your\project
 ```
 
-**After a per-project install, decide whether to commit or ignore the installed files:**
+**Per-project installs are gitignored by default** — the installer automatically adds `.claude/skills/` and `.claude/commands/` to the project's `.gitignore` so they don't end up in the project's git history. Each teammate runs the installer themselves.
 
-- **Share with teammates** — commit `.claude/skills/` and `.claude/commands/` so they get the same skills on `git pull`:
-  ```bash
-  git add .claude/skills .claude/commands
-  git commit -m "chore: add Claude Code skills and commands"
-  ```
+If instead you want to **commit** the skills and share them with the team via the project repo, pass `--no-gitignore` (or `-NoGitignore` on Windows):
 
-- **Keep local-only** — pass `--gitignore` to have the installer add the folders to `.gitignore` for you:
-  ```bash
-  ./install.sh --project --gitignore
-  ```
-  ```powershell
-  .\install.ps1 -Project -Gitignore
-  ```
-  Teammates will need to run their own install.
-
-(`.claude/` folders are **not** ignored by default — if you do nothing, the installed files will be picked up by `git status`.)
+```bash
+./install.sh --project --no-gitignore
+git add .claude/skills .claude/commands
+git commit -m "chore: add Claude Code skills and commands"
+```
+```powershell
+.\install.ps1 -Project -NoGitignore
+git add .claude\skills .claude\commands
+git commit -m "chore: add Claude Code skills and commands"
+```
 
 **Advanced — per-project with symlinks** (solo dev, same machine, not for git-sharing):
 ```bash

@@ -4,16 +4,16 @@
 #
 # Usage:
 #   ./install.sh                            # Global install (symlinks to ~/.claude/)
-#   ./install.sh --project                  # Per-project install (copies to ./.claude/)
+#   ./install.sh --project                  # Per-project install (copies to ./.claude/, gitignored by default)
 #   ./install.sh --project /path/to/repo    # Per-project install into a specific dir
-#   ./install.sh --project --symlink        # Per-project install using symlinks (solo dev, not for git-sharing)
-#   ./install.sh --project --gitignore      # Per-project install + add .claude/skills|commands to .gitignore
+#   ./install.sh --project --no-gitignore   # Per-project install WITHOUT gitignoring (commit & share with team)
+#   ./install.sh --project --symlink        # Per-project install using symlinks (solo dev only; implies --no-gitignore-relevant-only)
 #
 # Global install is shared across every project and updates live via `git pull`.
-# Per-project install puts skills & commands inside the project's `.claude/` folder.
-# Default per-project mode copies files — safe to commit, no symlink permission issues,
-# and teammates get the skills just by cloning the project. Pass --gitignore to keep
-# them local-only instead.
+# Per-project install copies files into the project's `.claude/` folder and
+# automatically adds .claude/skills/ and .claude/commands/ to .gitignore so
+# they don't end up in the project's git history. Pass --no-gitignore to keep
+# them out of .gitignore (e.g., if you want to commit them to share with a team).
 
 set -e
 
@@ -23,7 +23,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="global"
 TARGET_DIR=""
 USE_SYMLINK=false
-ADD_GITIGNORE=false
+ADD_GITIGNORE=true   # default ON for --project
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -35,7 +35,12 @@ while [[ $# -gt 0 ]]; do
             USE_SYMLINK=true
             shift
             ;;
+        --no-gitignore)
+            ADD_GITIGNORE=false
+            shift
+            ;;
         --gitignore)
+            # Back-compat — was required in the first version, now the default
             ADD_GITIGNORE=true
             shift
             ;;
@@ -150,10 +155,10 @@ echo "   - $installed_commands command(s) installed to $COMMANDS_DIR"
 echo ""
 
 if [ "$MODE" = "project" ]; then
-    # Optionally add to .gitignore
+    # Add to .gitignore by default (opt out with --no-gitignore)
     if [ "$ADD_GITIGNORE" = true ]; then
         gitignore="$TARGET_DIR/.gitignore"
-        marker="# Claude Code skills and commands (local-only install)"
+        marker="# Claude Code skills and commands (installed locally)"
         if [ -f "$gitignore" ] && grep -qF "$marker" "$gitignore"; then
             echo "ℹ️  .gitignore already has entries for .claude/skills and .claude/commands"
         else
@@ -171,11 +176,12 @@ if [ "$MODE" = "project" ]; then
     echo "Next steps:"
     echo "  - Skills and commands are available inside: $TARGET_DIR"
     if [ "$ADD_GITIGNORE" = true ]; then
-        echo "  - Skills and commands are gitignored — every dev runs this install themselves"
+        echo "  - .claude/skills/ and .claude/commands/ are gitignored — not committed to this repo"
+        echo "  - Teammates will need to run this install themselves"
+        echo "  - To share with the team via git instead: re-run with --no-gitignore and commit the folders"
     else
-        echo "  - Decide whether to commit or ignore the installed files:"
-        echo "      * Share with teammates:  git add .claude/skills .claude/commands && git commit"
-        echo "      * Keep local-only:       re-run with --gitignore, or add .claude/skills/ and .claude/commands/ to .gitignore"
+        echo "  - .claude/skills/ and .claude/commands/ are NOT gitignored — commit them to share with teammates:"
+        echo "      git add .claude/skills .claude/commands && git commit -m \"chore: add Claude Code skills and commands\""
     fi
     echo "  - For agile-board: python $REPO_DIR/skills/agile-board/scripts/setup.py"
     if [ "$USE_SYMLINK" = false ]; then
